@@ -5,10 +5,10 @@ I did not include the "Drivers" files in order to keep the project light. You ca
 ## Compilation 
 Compile simply using Makefiles
 
-` 
+```
 cd $PATH_TO_THIS_PROJECT
 make
-`
+```
 
 ## Uploading
 I used stutil in order to upload the firmware.
