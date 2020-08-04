@@ -46,7 +46,6 @@
 
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi2;
-
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
