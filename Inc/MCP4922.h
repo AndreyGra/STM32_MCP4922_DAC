@@ -22,10 +22,10 @@ enum MCP4922_CHANNEL_STATUS {
 };
 
 typedef struct {
-   MCP4922_CHANNEL_SELECTION channel;
-   MCP4922_INPUT_STATE inputState;
-   MCP4922_OUTPUT_GAIN gain;
-   MCP4922_CHANNEL_STATUS shutdownStatus;
+   enum MCP4922_CHANNEL_SELECTION channel;
+   enum MCP4922_INPUT_STATE inputState;
+   enum MCP4922_OUTPUT_GAIN gain;
+   enum MCP4922_CHANNEL_STATUS shutdownStatus;
    uint16_t channelValue;
 } MCP4922_Handle_Typedef ; 
 

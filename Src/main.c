@@ -24,6 +24,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
+#include "MCP4922.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -44,7 +46,7 @@
 SPI_HandleTypeDef hspi2;
 
 /* USER CODE BEGIN PV */
-
+MCP4922_Handle_Typedef dac;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -77,7 +79,6 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -92,6 +93,13 @@ int main(void)
   MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
 
+  dac.channel = A;
+  dac.inputState = BUFFERED;
+  dac.gain = X2;
+  dac.shutdownStatus = ACTIVE;
+  dac.channelValue = 0;
+  
+  
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -101,6 +109,17 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    uint16_t dataframe = ( dac.channel << 3    |
+                           dac.inputState << 2 |
+                           dac.gain << 1       |
+                           dac.shutdownStatus ) << 8 | dac.channelValue ;
+
+    uint16_t timeout = 1000;
+
+    HAL_StatusTypeDef error = HAL_SPI_Transmit(&hspi2, &dataframe, sizeof(dataframe), timeout);
+    HAL_Delay(1000);
+
+    dac.channelValue += 100;
   }
   /* USER CODE END 3 */
 }
