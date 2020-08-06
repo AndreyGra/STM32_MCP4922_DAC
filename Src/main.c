@@ -21,7 +21,7 @@
 #include "main.h"
 
 /* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */    //dac.channelValue += 100;
+/* USER CODE BEGIN Includes */
 
 #include "MCP4922.h"
 #include <stdio.h>
@@ -47,18 +47,26 @@
 
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi2;
+
 UART_HandleTypeDef huart1;
+DMA_HandleTypeDef hdma_usart1_tx;
 
 /* USER CODE BEGIN PV */
 MCP4922_Handle_Typedef dac;
 
 extern const uint16_t sineLookUpTable[1024];
 extern const uint16_t tableSize;
+
+//Other useful variabels
+uint16_t timeout = 1000;
+uint8_t debugBuffer[70]; 
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
@@ -97,6 +105,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_SPI2_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
@@ -107,10 +116,6 @@ int main(void)
   dac.inputState = BUFFERED;
   dac.shutdownStatus = ACTIVE;
 
-  //Other useful constants
-  uint16_t timeout = 1000;
-  uint8_t debugBuffer[64]; 
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -119,7 +124,6 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-
 
     /* USER CODE BEGIN 3 */
     for (uint16_t index = 0; index < tableSize; index++) {
@@ -130,14 +134,14 @@ int main(void)
       uint16_t dataframe = createDACFrame(&dac);
 
       //Write to DAC over SPI synchronously
-      HAL_StatusTypeDef error = HAL_SPI_Transmit(&hspi2, &dataframe, sizeof(dataframe), timeout);
+      HAL_StatusTypeDef spiError = HAL_SPI_Transmit(&hspi2, &dataframe, sizeof(dataframe), timeout);
 
+
+      //Provide Feedback about state of UART and SPI
+      HAL_UART_StateTypeDef uartState = HAL_UART_GetState(&huart1);      
+      sprintf(debugBuffer,"DATAFRAME VALUE: 0x%x , SPI ERROR CODE: 0x%x, UART_STATE: 0x%x \r\n", dac.channelValue, spiError, uartState);
+      HAL_StatusTypeDef uartDmaError = HAL_UART_Transmit (&huart1, (uint8_t*)debugBuffer, strlen(debugBuffer),100);
     }
-
-
-    //UART Output for debugging <--- Increases delay between points
-    //sprintf(debugBuffer,"DATAFRAME VALUE: 0x%x , SPI ERROR CODE: 0x%x \r\n ",dac.channelValue, error);
-    //HAL_UART_Transmit( &huart1, (uint8_t*)debugBuffer, strlen(buffer), timeout );
   }
   /* USER CODE END 3 */
 }
@@ -242,7 +246,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 38400;
+  huart1.Init.BaudRate = 115200;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
@@ -258,6 +262,22 @@ static void MX_USART1_UART_Init(void)
   /* USER CODE BEGIN USART1_Init 2 */
 
   /* USER CODE END USART1_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Channel2_3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel2_3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel2_3_IRQn);
 
 }
 
