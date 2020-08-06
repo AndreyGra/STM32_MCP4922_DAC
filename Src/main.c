@@ -42,6 +42,7 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
+#define DEBUG 0
 
 /* USER CODE END PM */
 
@@ -59,6 +60,7 @@ extern const uint16_t tableSize;
 
 //Other useful variabels
 uint16_t timeout = 1000;
+uint8_t decimationFactor = 20;
 uint8_t debugBuffer[70]; 
 
 /* USER CODE END PV */
@@ -126,21 +128,24 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    for (uint16_t index = 0; index < tableSize; index++) {
+    for (uint16_t index = 0; index < tableSize; index += decimationFactor) {
+
+      HAL_SPI_StateTypeDef spiState = HAL_SPI_GetState(&hspi2);
 
       //Update the channel value from lookup table
       dac.channelValue = sineLookUpTable[index];
-
       uint16_t dataframe = createDACFrame(&dac);
 
-      //Write to DAC over SPI synchronously
-      HAL_StatusTypeDef spiError = HAL_SPI_Transmit(&hspi2, &dataframe, sizeof(dataframe), timeout);
+      //Write to DAC over SPI using interrupts
+      HAL_StatusTypeDef spiError = HAL_SPI_Transmit_IT(&hspi2, &dataframe, sizeof(dataframe));
 
-
-      //Provide Feedback about state of UART and SPI
-      HAL_UART_StateTypeDef uartState = HAL_UART_GetState(&huart1);      
-      sprintf(debugBuffer,"DATAFRAME VALUE: 0x%x , SPI ERROR CODE: 0x%x, UART_STATE: 0x%x \r\n", dac.channelValue, spiError, uartState);
-      HAL_StatusTypeDef uartDmaError = HAL_UART_Transmit (&huart1, (uint8_t*)debugBuffer, strlen(debugBuffer),100);
+      // Provide Feedback about state of UART and SPI
+      if (DEBUG) {
+        HAL_UART_StateTypeDef uartState = HAL_UART_GetState(&huart1);      
+        sprintf(debugBuffer,"DATAFRAME VALUE: 0x%x , SPI ERROR CODE: 0x%x, UART_STATE: 0x%x \r\n", dac.channelValue, spiState, uartState);
+        HAL_StatusTypeDef uartDmaError = HAL_UART_Transmit (&huart1, (uint8_t*)debugBuffer, strlen(debugBuffer),100);
+      }
+     
     }
   }
   /* USER CODE END 3 */
@@ -213,7 +218,7 @@ static void MX_SPI2_Init(void)
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_HARD_OUTPUT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
