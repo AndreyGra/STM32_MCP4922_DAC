@@ -127,10 +127,11 @@ int main(void)
     //Update the channel value from lookup table
     dac.channelValue = sineLookUpTable[index];
     
-    uint16_t dataframe = ( dac.channel         << 3  |
-                           dac.inputState      << 2  |
-                           dac.gain            << 1  |
-                           dac.shutdownStatus) << 12 | dac.channelValue ;
+    uint16_t dataframe =   dac.channel         |
+                           dac.inputState      |
+                           dac.gain            |
+                           dac.shutdownStatus  | 
+                           dac.channelValue    ;
 
     //Write to DAC over SPI synchronously
     HAL_StatusTypeDef error = HAL_SPI_Transmit(&hspi2, &dataframe, sizeof(dataframe), timeout);
