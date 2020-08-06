@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 
+//Packed definition for MCP4922
+//| A | B | C | D | 
+
 enum MCP4922_CHANNEL_SELECTION {
     A = 0, B = 1
 };

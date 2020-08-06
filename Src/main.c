@@ -25,6 +25,7 @@
 
 #include "MCP4922.h"
 #include <stdio.h>
+#include "sineLookUp.h"
 #include "string.h"
 #include "math.h"
 
@@ -50,6 +51,9 @@ UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 MCP4922_Handle_Typedef dac;
+
+extern const uint16_t sineLookUpTable[1024];
+extern const uint16_t tableSize;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -105,28 +109,23 @@ int main(void)
 
   //Other useful constants
   uint16_t timeout = 1000;
-  uint8_t  tableIndex = 0;
-
   uint8_t debugBuffer[64]; 
-  uint16_t sineLookupTable[256];
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
-  //Generate look up table of sine values
-  for(int i = 1; i <= 256; i++){
-    double sineVal = 0.5*sin( (double) 2*M_PI*i/256)+0.5;
-    sineLookupStatic[i-1] = sineVal*4095;
-  }
-
   while (1)
   {
     /* USER CODE END WHILE */
+
+
     /* USER CODE BEGIN 3 */
+    for (uint16_t index = 0; index < tableSize; index++) {
 
     //Update the channel value from lookup table
-    dac.channelValue = sineLookupTable[tableIndex];
+    dac.channelValue = sineLookUpTable[index];
     
     uint16_t dataframe = ( dac.channel         << 3  |
                            dac.inputState      << 2  |
@@ -135,13 +134,10 @@ int main(void)
 
     //Write to DAC over SPI synchronously
     HAL_StatusTypeDef error = HAL_SPI_Transmit(&hspi2, &dataframe, sizeof(dataframe), timeout);
-  
 
-    //Update tableIndex in order to index next sample
-    tableIndex += 1;
+    }
 
-    //Index will overflow and return to 0 once max value (256) is reached
-    
+
     //UART Output for debugging <--- Increases delay between points
     //sprintf(debugBuffer,"DATAFRAME VALUE: 0x%x , SPI ERROR CODE: 0x%x \r\n ",dac.channelValue, error);
     //HAL_UART_Transmit( &huart1, (uint8_t*)debugBuffer, strlen(buffer), timeout );
