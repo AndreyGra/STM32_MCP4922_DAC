@@ -124,17 +124,13 @@ int main(void)
     /* USER CODE BEGIN 3 */
     for (uint16_t index = 0; index < tableSize; index++) {
 
-    //Update the channel value from lookup table
-    dac.channelValue = sineLookUpTable[index];
-    
-    uint16_t dataframe =   dac.channel         |
-                           dac.inputState      |
-                           dac.gain            |
-                           dac.shutdownStatus  | 
-                           dac.channelValue    ;
+      //Update the channel value from lookup table
+      dac.channelValue = sineLookUpTable[index];
 
-    //Write to DAC over SPI synchronously
-    HAL_StatusTypeDef error = HAL_SPI_Transmit(&hspi2, &dataframe, sizeof(dataframe), timeout);
+      uint16_t dataframe = createDACFrame(&dac);
+
+      //Write to DAC over SPI synchronously
+      HAL_StatusTypeDef error = HAL_SPI_Transmit(&hspi2, &dataframe, sizeof(dataframe), timeout);
 
     }
 

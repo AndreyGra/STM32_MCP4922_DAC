@@ -35,4 +35,7 @@ typedef struct {
    uint16_t channelValue;
 } MCP4922_Handle_Typedef ; 
 
+
+const uint16_t createDACFrame(MCP4922_Handle_Typedef *dac);
+
 #endif
