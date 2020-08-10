@@ -61,11 +61,13 @@ extern const uint16_t tableSize;
 
 //Other useful variabels
 uint16_t timeout = 1000;
+uint16_t spiBuffer[2];
+uint16_t spiRXBuffer[5];
+
 uint8_t decimationFactor = 20;
 uint8_t debugBuffer[70]; 
 
-uint16_t spiBuffer[2];
-uint16_t spiRXBuffer[5];
+
 
 /* USER CODE END PV */
 
@@ -118,12 +120,10 @@ int main(void)
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
 
-  //Profide control bits for DAC
-  dac.gain = X1;
-  dac.channel = A;
-  dac.inputState = UNBUFFERED;
-  dac.shutdownStatus = ACTIVE;
-
+  // Provide basic configurations for DAC
+  MCP4922SetChannelStatus(&dac, ACTIVE);
+  MCP4922SetChannelGain(&dac, X1);
+  
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -137,12 +137,12 @@ int main(void)
     for (uint16_t index = 0; index < tableSize; index++) {
 
       //Update the channel value from lookup table
-      dac.channelValue = sineLookUpTable[index];
+      MCP4922SetChannelValue(&dac,sineLookUpTable[index]);
 
-      dac.channel = A;
+      MCP4922SetChannel(&dac,A);
       uint16_t dataframeA = createDACFrame(&dac);
 
-      dac.channel = B;
+      MCP4922SetChannel(&dac,A);
       uint16_t dataframeB = createDACFrame(&dac);
 
       spiBuffer[0] = dataframeA;
@@ -152,7 +152,7 @@ int main(void)
       HAL_StatusTypeDef spiTXError = HAL_SPI_Transmit_IT(&hspi2, (uint8_t*)spiBuffer, sizeof(spiBuffer)/sizeof(uint16_t));
 
       //Receive readings from ADC synchronously
-      HAL_StatusTypeDef spiRXError = HAL_SPI_Receive(&hspi1, &spiRXBuffer, 10, 1000);
+      HAL_StatusTypeDef spiRXError = HAL_SPI_Receive(&hspi1, &spiRXBuffer, 10, timeout);
 
       for (uint8_t reading = 0; reading < 10; reading++){
 
@@ -166,9 +166,9 @@ int main(void)
         HAL_UART_StateTypeDef uartState = HAL_UART_GetState(&huart1);      
 
         uint16_t adcReading = spiRXBuffer[4]*4;
-        int8_t dacAdcDifference = dac.channelValue - adcReading;
+        int8_t dacAdcDifference = sineLookUpTable[index] - adcReading;
 
-        sprintf(debugBuffer, "Sample: %d, ADC: %d, DIFF: %d \r\n ", dac.channelValue, adcReading, dacAdcDifference); 
+        sprintf(debugBuffer, "Sample: %d, ADC: %d, DIFF: %d \r\n ", sineLookUpTable[index], adcReading, dacAdcDifference); 
         HAL_StatusTypeDef uartDmaError = HAL_UART_Transmit (&huart1, (uint8_t*)debugBuffer, strlen(debugBuffer),100);
       }
      
