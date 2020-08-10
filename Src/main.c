@@ -42,11 +42,12 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-#define DEBUG 0
+#define DEBUG 1
 
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+SPI_HandleTypeDef hspi1;
 SPI_HandleTypeDef hspi2;
 
 UART_HandleTypeDef huart1;
@@ -63,6 +64,9 @@ uint16_t timeout = 1000;
 uint8_t decimationFactor = 20;
 uint8_t debugBuffer[70]; 
 
+uint16_t spiBuffer[2];
+uint16_t spiRXBuffer[5];
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -71,6 +75,7 @@ static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_SPI1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -110,12 +115,13 @@ int main(void)
   MX_DMA_Init();
   MX_SPI2_Init();
   MX_USART1_UART_Init();
+  MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
 
   //Profide control bits for DAC
   dac.gain = X1;
-  dac.channel = B;
-  dac.inputState = BUFFERED;
+  dac.channel = A;
+  dac.inputState = UNBUFFERED;
   dac.shutdownStatus = ACTIVE;
 
   /* USER CODE END 2 */
@@ -128,21 +134,41 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    for (uint16_t index = 0; index < tableSize; index += decimationFactor) {
-
-      HAL_SPI_StateTypeDef spiState = HAL_SPI_GetState(&hspi2);
+    for (uint16_t index = 0; index < tableSize; index++) {
 
       //Update the channel value from lookup table
       dac.channelValue = sineLookUpTable[index];
-      uint16_t dataframe = createDACFrame(&dac);
+
+      dac.channel = A;
+      uint16_t dataframeA = createDACFrame(&dac);
+
+      dac.channel = B;
+      uint16_t dataframeB = createDACFrame(&dac);
+
+      spiBuffer[0] = dataframeA;
+      spiBuffer[1] = dataframeB;
 
       //Write to DAC over SPI using interrupts
-      HAL_StatusTypeDef spiError = HAL_SPI_Transmit_IT(&hspi2, &dataframe, sizeof(dataframe));
+      HAL_StatusTypeDef spiTXError = HAL_SPI_Transmit_IT(&hspi2, (uint8_t*)spiBuffer, sizeof(spiBuffer)/sizeof(uint16_t));
+
+      //Receive readings from ADC synchronously
+      HAL_StatusTypeDef spiRXError = HAL_SPI_Receive(&hspi1, &spiRXBuffer, 10, 1000);
+
+      for (uint8_t reading = 0; reading < 10; reading++){
+
+        //Remove 6 first most significant bits
+        spiRXBuffer[reading] &= 0x03FF;
+
+      }
 
       // Provide Feedback about state of UART and SPI
       if (DEBUG) {
         HAL_UART_StateTypeDef uartState = HAL_UART_GetState(&huart1);      
-        sprintf(debugBuffer,"DATAFRAME VALUE: 0x%x , SPI ERROR CODE: 0x%x, UART_STATE: 0x%x \r\n", dac.channelValue, spiState, uartState);
+
+        uint16_t adcReading = spiRXBuffer[4]*4;
+        int8_t dacAdcDifference = dac.channelValue - adcReading;
+
+        sprintf(debugBuffer, "Sample: %d, ADC: %d, DIFF: %d \r\n ", dac.channelValue, adcReading, dacAdcDifference); 
         HAL_StatusTypeDef uartDmaError = HAL_UART_Transmit (&huart1, (uint8_t*)debugBuffer, strlen(debugBuffer),100);
       }
      
@@ -193,6 +219,46 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief SPI1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI1_Init(void)
+{
+
+  /* USER CODE BEGIN SPI1_Init 0 */
+
+  /* USER CODE END SPI1_Init 0 */
+
+  /* USER CODE BEGIN SPI1_Init 1 */
+
+  /* USER CODE END SPI1_Init 1 */
+  /* SPI1 parameter configuration*/
+  hspi1.Instance = SPI1;
+  hspi1.Init.Mode = SPI_MODE_MASTER;
+  hspi1.Init.Direction = SPI_DIRECTION_2LINES_RXONLY;
+  hspi1.Init.DataSize = SPI_DATASIZE_13BIT;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi1.Init.NSS = SPI_NSS_HARD_OUTPUT;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
+  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi1.Init.CRCPolynomial = 7;
+  hspi1.Init.CRCLength = SPI_CRC_LENGTH_DATASIZE;
+  hspi1.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
+  if (HAL_SPI_Init(&hspi1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI1_Init 2 */
+
+  /* USER CODE END SPI1_Init 2 */
+
 }
 
 /**
